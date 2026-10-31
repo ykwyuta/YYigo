@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dca0"/><stop offset="1" stop-color="#e3b462"/></linearGradient>
+    <radialGradient id="k" cx="0.35" cy="0.3" r="0.75"><stop offset="0" stop-color="#6b6b6b"/><stop offset="0.45" stop-color="#1d1d1d"/><stop offset="1" stop-color="#000"/></radialGradient>
+    <radialGradient id="w" cx="0.35" cy="0.3" r="0.75"><stop offset="0" stop-color="#fff"/><stop offset="0.5" stop-color="#f1efe9"/><stop offset="1" stop-color="#c9c4b8"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <g stroke="#6f4d1f" stroke-width="10" stroke-linecap="round">
+    <path d="M96,96V416M176,96V416M256,96V416M336,96V416M416,96V416"/>
+    <path d="M96,96H416M96,176H416M96,256H416M96,336H416M96,416H416"/>
+  </g>
+  <g fill="#16a34a">
+    <circle cx="256" cy="176" r="22"/><circle cx="176" cy="256" r="22"/><circle cx="256" cy="336" r="22"/>
+  </g>
+  <circle cx="256" cy="256" r="66" fill="url(#k)"/>
+  <circle cx="336" cy="256" r="66" fill="url(#w)" stroke="#8a8370" stroke-width="3"/>
+</svg>

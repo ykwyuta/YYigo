@@ -1,0 +1,11 @@
+# 公開しないファイル（Cloudflare にアップロードしない）
+.git
+.github
+.wrangler
+node_modules
+test
+tools
+README.md
+wrangler.jsonc
+.assetsignore
+.nojekyll

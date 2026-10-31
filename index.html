@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>いきがみえる囲碁</title>
+  <meta name="description" content="石の「いき」が みえるから、はじめてでも あそべる 囲碁。スマホで CPU や ともだちと たいせんできます。">
+  <meta name="theme-color" content="#f6e3bd">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="囲碁">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="title"><span class="t-sub">いきがみえる</span><span class="t-main">囲碁</span></h1>
+    <nav class="top-actions">
+      <button id="btn-tsume" type="button" class="chip tsume-chip">いしとり もんだい</button>
+      <button id="btn-guide" type="button" class="chip">ルール</button>
+      <button id="btn-menu" type="button" class="chip">メニュー</button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="game" aria-label="対局">
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <div class="player" id="player-top"></div>
+      <div class="board-wrap">
+        <div class="files" id="files"></div>
+        <div class="board-row">
+          <div class="ranks" id="ranks"></div>
+          <div id="board" class="board" role="grid" aria-label="碁盤"></div>
+        </div>
+      </div>
+      <div class="player" id="player-bottom"></div>
+      <div class="controls play-controls">
+        <button id="btn-hint" type="button" class="big hint">ヒント</button>
+        <button id="btn-pass" type="button" class="big">パス</button>
+        <button id="btn-undo" type="button" class="big">まった</button>
+      </div>
+      <div class="controls score-controls">
+        <button id="btn-score-back" type="button" class="big">つづきを うつ</button>
+        <button id="btn-score-ok" type="button" class="big primary">これで かぞえる</button>
+      </div>
+      <div class="controls ts-controls">
+        <button id="btn-ts-retry" type="button" class="big small">やりなおす</button>
+        <button id="btn-ts-answer" type="button" class="big small">こたえを みる</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="info" id="info"></div>
+      <details class="kifu-box">
+        <summary>きふ（これまでの 手）</summary>
+        <ol id="kifu"></ol>
+      </details>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" aria-live="polite"></div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <dialog id="dlg-new">
+    <form method="dialog" class="dlg">
+      <h2>あたらしい ゲーム</h2>
+      <p class="welcome" id="welcome">石を おく ところを タッチすると、どうなるかが みえるよ。<br>ルールを しらなくても だいじょうぶ！ まずは「いしとり」から はじめよう。</p>
+      <fieldset>
+        <legend>だれと あそぶ？</legend>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="cpu" checked><span>CPU と たいせん</span></label>
+          <label><input type="radio" name="mode" value="two"><span>ふたりで たいせん</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>ルール</legend>
+        <div class="seg">
+          <label><input type="radio" name="rule" value="capture" checked><span>いしとり<small>さきに とったら かち</small></span></label>
+          <label><input type="radio" name="rule" value="territory"><span>ふつうの 囲碁<small>じんちの ひろさで しょうぶ</small></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="capture-only">
+        <legend>いくつ とったら かち？</legend>
+        <div class="seg">
+          <label><input type="radio" name="goal" value="1"><span>1こ</span></label>
+          <label><input type="radio" name="goal" value="3" checked><span>3こ</span></label>
+          <label><input type="radio" name="goal" value="5"><span>5こ</span></label>
+          <label><input type="radio" name="goal" value="10"><span>10こ</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>ばんの おおきさ</legend>
+        <div class="seg">
+          <label><input type="radio" name="size" value="7"><span>7ろ</span></label>
+          <label><input type="radio" name="size" value="9" checked><span>9ろ</span></label>
+          <label><input type="radio" name="size" value="13"><span>13ろ</span></label>
+          <label><input type="radio" name="size" value="19"><span>19ろ</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="cpu-only">
+        <legend>CPU の つよさ</legend>
+        <div class="seg">
+          <label><input type="radio" name="level" value="beginner" checked><span>はじめて</span></label>
+          <label><input type="radio" name="level" value="easy"><span>よわい</span></label>
+          <label><input type="radio" name="level" value="normal"><span>ふつう</span></label>
+          <label><input type="radio" name="level" value="hard"><span>つよい</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="cpu-only" id="fs-order">
+        <legend>じゅんばん</legend>
+        <div class="seg">
+          <label><input type="radio" name="order" value="first" checked><span>あなたが くろ（さき）</span></label>
+          <label><input type="radio" name="order" value="second"><span>あなたが しろ</span></label>
+          <label><input type="radio" name="order" value="random"><span>おまかせ</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend id="hc-legend">ハンデ（あなたが さきに 石を おく）</legend>
+        <select name="handicap" id="sel-handicap"></select>
+      </fieldset>
+      <div class="dlg-buttons">
+        <button value="cancel" type="submit" id="btn-new-cancel">やめる</button>
+        <button value="ok" class="primary" type="submit">はじめる！</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-menu">
+    <form method="dialog" class="dlg menu">
+      <h2>メニュー</h2>
+      <button value="new" type="submit" class="primary">あたらしく はじめる</button>
+      <button value="tsume" type="submit">いしとり もんだい（30もん）</button>
+      <button value="howto" type="submit">あそびかた</button>
+      <button value="guide" type="submit">囲碁の ルール</button>
+      <button value="estimate" type="submit" id="btn-estimate">いまの じんちを みる</button>
+      <button value="settings" type="submit">せってい</button>
+      <button value="resign" type="submit" class="danger" id="btn-resign">こうさんする</button>
+      <button value="close" type="submit">とじる</button>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-guide">
+    <form method="dialog" class="dlg wide guide">
+      <h2>囲碁の ルール</h2>
+      <div class="guide-grid" id="guide-list"></div>
+      <div class="dlg-buttons"><button class="primary" value="close" type="submit">とじる</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-howto">
+    <form method="dialog" class="dlg wide howto">
+      <h2>あそびかた</h2>
+      <section>
+        <h3>石の おきかた</h3>
+        <ol>
+          <li>石を おきたい ところ（線と 線が まじわる ところ）を タッチ。</li>
+          <li>うすい 石が でて、おいたら どうなるかが みえるよ。</li>
+          <li>おなじ ところを もういちど タッチすると、石を おくよ。</li>
+        </ol>
+        <p>（「せってい」で、1回の タッチで おくように かえられるよ）</p>
+      </section>
+      <section>
+        <h3>いき（こきゅうてん）</h3>
+        <p>石の となり（たて・よこ）の あいている ところを「いき」と いうよ。石を タッチすると いき が <span class="lg lg-lib"></span> で みえるよ。いき が ぜんぶ ふさがれると、その石は とられちゃう。</p>
+      </section>
+      <section>
+        <h3>アタリ</h3>
+        <p>いき が あと 1つの ことを「アタリ」と いうよ。石に <span class="lg lg-n1">1</span> が でたら アタリ！ にげるか、まわりの 石を とって たすけよう。</p>
+      </section>
+      <section>
+        <h3>2つの ルール</h3>
+        <ul>
+          <li><b>いしとり</b>：さきに きめた 数の 石を とった ほうの かち。はじめての 人は ここから！</li>
+          <li><b>ふつうの 囲碁</b>：じぶんの 石で かこんだ「じんち」の ひろさで しょうぶ。ふたりとも パスしたら おわりで、かぞえるよ。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>おたすけ きのう</h3>
+        <ul>
+          <li><b>いきの かず</b>：<span class="lg lg-n1">1</span><span class="lg lg-n2">2</span> は その石の いき の かず。<span class="lg lg-n1">1</span> は アタリだよ。</li>
+          <li><b>とれる ところ</b>：<span class="lg lg-cap"></span> に おくと、あいての 石が とれるよ。</li>
+          <li><b>あぶないマーク</b>：<span class="lg lg-warn">!</span> は そこに おくと、すぐ とられちゃうかも という しるし。</li>
+          <li><b>おけない ところ</b>：ルールで おけない ところ（いき が ない ところ・コウ）は、タッチすると わけを おしえて くれるよ。</li>
+          <li><b>ヒント</b>：まよったら おしてみよう。おすすめの 手を おしえて くれるよ。</li>
+          <li><b>まった</b>：まちがえたら、1手 もどせるよ。</li>
+        </ul>
+      </section>
+      <div class="dlg-buttons"><button class="primary" value="close" type="submit">わかった！</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-settings">
+    <form method="dialog" class="dlg">
+      <h2>せってい</h2>
+      <label class="toggle"><input type="checkbox" name="libs"><span>いきの かず（いき が 1〜2 の 石に 数字）</span></label>
+      <label class="toggle"><input type="checkbox" name="caps"><span>とれる ところ（とれる ところに 赤い わ）</span></label>
+      <label class="toggle"><input type="checkbox" name="danger"><span>あぶないマーク（すぐ とられそうな ところに ！）</span></label>
+      <label class="toggle"><input type="checkbox" name="confirm"><span>おく まえに たしかめる（2回 タッチで おく）</span></label>
+      <label class="toggle"><input type="checkbox" name="numbers"><span>石に 手の ばんごうを つける</span></label>
+      <label class="toggle"><input type="checkbox" name="sound"><span>おと</span></label>
+      <div class="dlg-buttons"><button class="primary" value="close" type="submit">とじる</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-tsume">
+    <form method="dialog" class="dlg wide">
+      <h2>いしとり もんだい</h2>
+      <p>くろの ばん。しるし（<span class="lg lg-target"></span>）の ついた しろい 石を、きめられた 手数で とろう！ しろは いちばん ながく にげる 手を うってくるよ。</p>
+      <div id="tsume-list"></div>
+      <div class="dlg-buttons"><button value="close" type="submit">とじる</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-tsume-result">
+    <form method="dialog" class="dlg ts-result" id="tsume-result"></form>
+  </dialog>
+
+  <dialog id="dlg-result">
+    <form method="dialog" class="dlg result">
+      <h2 id="result-title"></h2>
+      <p id="result-text"></p>
+      <div id="result-score"></div>
+      <div class="dlg-buttons">
+        <button value="close" type="submit">ばんめんを みる</button>
+        <button value="undo" type="submit" id="btn-result-undo">まった</button>
+        <button value="new" class="primary" type="submit">もういちど</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/rules.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/tsumego.js"></script>
+  <script src="js/tsumego-data.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
