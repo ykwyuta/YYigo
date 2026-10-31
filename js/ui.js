@@ -679,37 +679,111 @@
     toastTimer = setTimeout(() => { el.className = 'toast'; }, 1800);
   }
 
-  let actx = null;
-  function tone(freq, start, dur, type, vol) {
-    const t0 = actx.currentTime + start;
+  // ---------- 音 ----------
+  // スマホのブラウザは「画面をタッチしたとき」にしか音を出す準備ができない。
+  // そこで最初のタッチで AudioContext を作って動かし、無音を1回鳴らして音を出せる状態にしておく。
+  // iPhone はマナーモード（消音スイッチ）だと Web Audio が鳴らないので、音楽と同じ扱い（playback）にする。
+  let actx = null, master = null, unlocked = false, silentAudio = null;
+  function audioCtx() {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.9;
+      const comp = actx.createDynamicsCompressor();
+      master.connect(comp).connect(actx.destination);
+    }
+    return actx;
+  }
+  function silentWav() {
+    // 0.1 秒の無音 WAV（8kHz・8bit）
+    const n = 800, buf = new Uint8Array(44 + n);
+    const dv = new DataView(buf.buffer);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) buf[o + i] = t.charCodeAt(i); };
+    str(0, 'RIFF'); dv.setUint32(4, 36 + n, true); str(8, 'WAVEfmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+    dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true);
+    str(36, 'data'); dv.setUint32(40, n, true);
+    buf.fill(128, 44);
+    let bin = '';
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    return 'data:audio/wav;base64,' + btoa(bin);
+  }
+  function unlockAudio() {
+    if (!app.settings.sound) return;
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+      else if (!silentAudio) {
+        // 古い iPhone：<audio> を1回鳴らすと、マナーモードでも音が出るようになる
+        silentAudio = new Audio(silentWav());
+        silentAudio.setAttribute('playsinline', '');
+        const pr = silentAudio.play();
+        if (pr && pr.catch) pr.catch(() => {});
+      }
+      const ctx = audioCtx();
+      if (!ctx) return;
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      if (!unlocked) {
+        const src = ctx.createBufferSource();
+        src.buffer = ctx.createBuffer(1, 1, 22050);
+        src.connect(ctx.destination);
+        src.start(0);
+        unlocked = true;
+      }
+    } catch (e) { /* 音が出せない環境では鳴らさない */ }
+  }
+  for (const ev of ['pointerdown', 'touchstart', 'touchend', 'mousedown', 'click', 'keydown']) {
+    document.addEventListener(ev, unlockAudio, { capture: true, passive: true });
+  }
+  // 別のアプリから戻ったときなどに止まっていたら、次のタッチで動かし直す
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && actx && actx.state !== 'running') unlocked = false; });
+
+  function tone(freq, start, dur, type, vol, to) {
+    const t0 = actx.currentTime + 0.01 + start;
     const o = actx.createOscillator();
     const g = actx.createGain();
     o.type = type || 'triangle';
     o.frequency.setValueAtTime(freq, t0);
-    g.gain.setValueAtTime(vol || 0.25, t0);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    o.connect(g).connect(actx.destination);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.25, t0 + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(master);
     o.start(t0);
-    o.stop(t0 + dur + 0.02);
-    return o;
+    o.stop(t0 + dur + 0.03);
+  }
+  // 碁石を置く「パチッ」：短い雑音 ＋ 低い音
+  function clack() {
+    const t0 = actx.currentTime + 0.01;
+    const len = Math.floor(actx.sampleRate * 0.05);
+    const buf = actx.createBuffer(1, len, actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+    const src = actx.createBufferSource();
+    src.buffer = buf;
+    const bp = actx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 1.2;
+    const g = actx.createGain();
+    g.gain.value = 1.4;
+    src.connect(bp).connect(g).connect(master);
+    src.start(t0);
+    tone(520, 0, 0.08, 'sine', 0.5, 180);
+  }
+  function play(kind) {
+    if (kind === 'move') clack();
+    else if (kind === 'cap') [700, 900, 1100].forEach((f, i) => tone(f, 0.08 + i * 0.07, 0.14, 'triangle', 0.3));
+    else if (kind === 'check') { tone(660, 0.05, 0.16, 'square', 0.12); tone(880, 0.21, 0.22, 'square', 0.12); }
+    else if (kind === 'win') [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, 0.32, 'triangle', 0.35));
+    else if (kind === 'lose') [392, 330, 262].forEach((f, i) => tone(f, i * 0.18, 0.38, 'sine', 0.35));
   }
   function sound(kind) {
     if (!app.settings.sound) return;
     try {
-      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-      if (actx.state === 'suspended') actx.resume();
-      if (kind === 'move') {
-        const o = tone(1200, 0, 0.07, 'triangle', 0.3);
-        o.frequency.exponentialRampToValueAtTime(220, actx.currentTime + 0.06);
-      } else if (kind === 'cap') {
-        [700, 900, 1100].forEach((f, i) => tone(f, 0.08 + i * 0.06, 0.12, 'triangle', 0.16));
-      } else if (kind === 'check') {
-        tone(660, 0.05, 0.15, 'square', 0.07); tone(880, 0.2, 0.2, 'square', 0.07);
-      } else if (kind === 'win') {
-        [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, 0.3, 'triangle', 0.22));
-      } else if (kind === 'lose') {
-        [392, 330, 262].forEach((f, i) => tone(f, i * 0.18, 0.35, 'sine', 0.2));
-      }
+      const ctx = audioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'running') play(kind);
+      else ctx.resume().then(() => play(kind)).catch(() => {});
     } catch (e) { /* 音が出せない環境では鳴らさない */ }
   }
 
